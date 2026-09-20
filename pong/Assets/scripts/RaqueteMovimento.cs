@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Globalization;
 
 public class RaqueteMovimento : MonoBehaviour
 {
@@ -10,129 +11,210 @@ public class RaqueteMovimento : MonoBehaviour
     [Header("Jogador")]
     public bool jogador1 = true;
 
+    [Header("Rede")]
+    public float suavizacaoRede = 15f;
+    public float intervaloEnvio = 0.03f;
+
     private TCPManager tcp;
+    private UDPManager udp;
 
-    void OnEnable()
-{
-    tcp = TCPManager.Instance;
+    private float posicaoYRede;
+    private float proximoEnvio = 0f;
 
-    if (tcp != null)
+    void Start()
     {
-        tcp.AoReceberMensagem += ReceberMensagemRede;
+        tcp = TCPManager.Instance;
+        udp = UDPManager.Instance;
+
+        posicaoYRede =
+            transform.position.y;
+
+        if (udp != null)
+        {
+            udp.AoReceberMensagem +=
+                ReceberMensagemRede;
+        }
     }
-}
 
     void Update()
     {
-        if (tcp == null || !tcp.conectado)
+        if (tcp == null ||
+            !tcp.conectado)
+        {
             return;
+        }
 
         bool souDonoDaRaquete =
             (jogador1 && tcp.souHost) ||
             (!jogador1 && !tcp.souHost);
 
-        if (!souDonoDaRaquete)
-            return;
+        if (souDonoDaRaquete)
+        {
+            MovimentoLocal();
+        }
+        else
+        {
+            MovimentoRede();
+        }
+    }
 
+    private void MovimentoLocal()
+    {
         float movimento = 0f;
 
         if (jogador1)
         {
             if (Keyboard.current.wKey.isPressed)
+            {
                 movimento = 1f;
+            }
 
             if (Keyboard.current.sKey.isPressed)
+            {
                 movimento = -1f;
+            }
         }
         else
         {
             if (Keyboard.current.upArrowKey.isPressed)
+            {
                 movimento = 1f;
+            }
 
             if (Keyboard.current.downArrowKey.isPressed)
+            {
                 movimento = -1f;
+            }
         }
 
         transform.Translate(
-            Vector2.up * movimento * velocidade * Time.deltaTime
+            Vector2.up *
+            movimento *
+            velocidade *
+            Time.deltaTime
         );
 
-        Vector3 posicao = transform.position;
+        Vector3 posicao =
+            transform.position;
 
-        posicao.y = Mathf.Clamp(
-            posicao.y,
-            -limiteY,
-            limiteY
-        );
+        posicao.y =
+            Mathf.Clamp(
+                posicao.y,
+                -limiteY,
+                limiteY
+            );
 
-        transform.position = posicao;
+        transform.position =
+            posicao;
 
-        // Só envia enquanto estiver se movimentando
-        if (movimento != 0f)
-{
-    int numeroJogador = jogador1 ? 1 : 2;
+        if (movimento != 0f &&
+            Time.time >= proximoEnvio)
+        {
+            EnviarPosicao();
 
-    string mensagem =
-        "RAQUETE:" +
-        numeroJogador + ":" +
-        transform.position.y.ToString(
-            System.Globalization.CultureInfo.InvariantCulture
-        );
-
-    Debug.Log("ENVIANDO: " + mensagem);
-
-    tcp.EnviarMensagem(mensagem);
-}
+            proximoEnvio =
+                Time.time +
+                intervaloEnvio;
+        }
     }
 
-    private void ReceberMensagemRede(string mensagem)
+    private void MovimentoRede()
     {
-        Debug.Log("RECEBI: " + mensagem);
+        Vector3 posicao =
+            transform.position;
 
-        if (!mensagem.StartsWith("RAQUETE:"))
+        posicao.y =
+            Mathf.Lerp(
+                posicao.y,
+                posicaoYRede,
+                Time.deltaTime *
+                suavizacaoRede
+            );
+
+        transform.position =
+            posicao;
+    }
+
+    private void EnviarPosicao()
+    {
+        if (udp == null)
             return;
 
-        string[] dados = mensagem.Split(':');
+        int numeroJogador =
+            jogador1 ? 1 : 2;
+
+        string mensagem =
+            "RAQUETE:" +
+            numeroJogador +
+            ":" +
+            transform.position.y.ToString(
+                "F3",
+                CultureInfo.InvariantCulture
+            );
+
+        udp.EnviarMensagem(
+            mensagem
+        );
+    }
+
+    private void ReceberMensagemRede(
+        string mensagem
+    )
+    {
+        if (!mensagem.StartsWith(
+            "RAQUETE:"
+        ))
+        {
+            return;
+        }
+
+        string[] dados =
+            mensagem.Split(':');
 
         if (dados.Length != 3)
             return;
 
-        int numeroJogador = int.Parse(dados[1]);
+        int numeroJogador;
 
-        float posicaoY;
-
-        if (!float.TryParse(
-            dados[2],
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out posicaoY))
+        if (!int.TryParse(
+            dados[1],
+            out numeroJogador
+        ))
         {
             return;
         }
 
-        if (jogador1 && numeroJogador == 1)
+        float y;
+
+        if (!float.TryParse(
+            dados[2],
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out y
+        ))
         {
-            transform.position = new Vector3(
-                transform.position.x,
-                posicaoY,
-                transform.position.z
-            );
+            return;
         }
-        else if (!jogador1 && numeroJogador == 2)
+
+        if (jogador1 &&
+            numeroJogador == 1)
         {
-            transform.position = new Vector3(
-                transform.position.x,
-                posicaoY,
-                transform.position.z
-            );
+            posicaoYRede = y;
+        }
+
+        if (!jogador1 &&
+            numeroJogador == 2)
+        {
+            posicaoYRede = y;
         }
     }
 
-    private void OnDisable()
-{
-    if (tcp != null)
+    private void OnDestroy()
     {
-        tcp.AoReceberMensagem -= ReceberMensagemRede;
+        if (udp != null)
+        {
+            udp.AoReceberMensagem -=
+                ReceberMensagemRede;
+        }
     }
-}
 }

@@ -19,30 +19,51 @@ public class MenuRede : MonoBehaviour
 
     public void CriarSala()
     {
-        textoStatus.text = "AGUARDANDO JOGADOR...";
+        textoStatus.text =
+            "AGUARDANDO JOGADOR...";
 
         tcp.CriarSala();
     }
 
     public void EntrarSala()
     {
-        string ip = campoIP.text.Trim();
+        string ip =
+            campoIP.text.Trim();
 
         if (string.IsNullOrEmpty(ip))
         {
-            textoStatus.text = "DIGITE O IP DO HOST";
+            textoStatus.text =
+                "DIGITE O IP DO HOST";
+
             return;
         }
 
-        textoStatus.text = "CONECTANDO...";
+        textoStatus.text =
+            "CONECTANDO...";
 
         tcp.EntrarSala(ip);
     }
 
     private void Conectado()
     {
-        textoStatus.text = "CONECTADO!";
+        textoStatus.text =
+            "CONECTADO!";
 
-        SceneManager.LoadScene("Jogo");
+        if (UDPManager.Instance != null)
+        {
+            UDPManager.Instance.Inicializar();
+        }
+
+        SceneManager.LoadScene(
+            "Jogo"
+        );
+    }
+
+    private void OnDestroy()
+    {
+        if (tcp != null)
+        {
+            tcp.AoConectar -= Conectado;
+        }
     }
 }

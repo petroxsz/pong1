@@ -13,9 +13,13 @@ public class TCPManager : MonoBehaviour
     [Header("Rede")]
     public int porta = 7777;
 
+    [HideInInspector]
+    public string ipHost = "";
+
     private TcpListener servidor;
     private TcpClient cliente;
     private NetworkStream stream;
+
     private Thread threadReceber;
 
     public bool conectado = false;
@@ -24,19 +28,26 @@ public class TCPManager : MonoBehaviour
     public Action<string> AoReceberMensagem;
     public Action AoConectar;
 
-    private Queue<string> mensagensRecebidas = new Queue<string>();
-    private Queue<Action> filaPrincipal = new Queue<Action>();
+    private Queue<string> mensagensRecebidas =
+        new Queue<string>();
+
+    private Queue<Action> filaPrincipal =
+        new Queue<Action>();
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (Instance != null &&
+            Instance != this)
         {
             Destroy(gameObject);
             return;
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+
+        DontDestroyOnLoad(
+            gameObject
+        );
     }
 
     public void CriarSala()
@@ -45,118 +56,186 @@ public class TCPManager : MonoBehaviour
         {
             souHost = true;
 
-            servidor = new TcpListener(IPAddress.Any, porta);
+            servidor =
+                new TcpListener(
+                    IPAddress.Any,
+                    porta
+                );
+
             servidor.Start();
 
-            Debug.Log("Sala criada! Aguardando cliente...");
+            Debug.Log(
+                "Sala criada! Aguardando cliente..."
+            );
 
-            servidor.BeginAcceptTcpClient(AceitarCliente, null);
+            servidor.BeginAcceptTcpClient(
+                AceitarCliente,
+                null
+            );
         }
         catch (Exception erro)
         {
-            Debug.LogError("Erro ao criar sala: " + erro.Message);
+            Debug.LogError(
+                "Erro ao criar sala: " +
+                erro.Message
+            );
         }
     }
 
-    private void AceitarCliente(IAsyncResult resultado)
+    private void AceitarCliente(
+        IAsyncResult resultado
+    )
     {
         try
         {
-            cliente = servidor.EndAcceptTcpClient(resultado);
+            cliente =
+                servidor.EndAcceptTcpClient(
+                    resultado
+                );
 
-            stream = cliente.GetStream();
+            cliente.NoDelay = true;
+
+            stream =
+                cliente.GetStream();
 
             conectado = true;
 
-            Debug.Log("Cliente conectado!");
+            Debug.Log(
+                "Cliente conectado!"
+            );
 
             lock (filaPrincipal)
             {
-                filaPrincipal.Enqueue(() =>
-                {
-                    AoConectar?.Invoke();
-                });
+                filaPrincipal.Enqueue(
+                    () =>
+                    {
+                        AoConectar?.Invoke();
+                    }
+                );
             }
 
             IniciarRecebimento();
         }
         catch (Exception erro)
         {
-            Debug.LogError("Erro ao aceitar cliente: " + erro.Message);
+            Debug.LogError(
+                "Erro ao aceitar cliente: " +
+                erro.Message
+            );
         }
     }
 
-    public void EntrarSala(string ip)
+    public void EntrarSala(
+        string ip
+    )
     {
         try
         {
             souHost = false;
 
-            cliente = new TcpClient();
-            cliente.Connect(ip, porta);
+            ipHost = ip;
 
-            stream = cliente.GetStream();
+            cliente =
+                new TcpClient();
+
+            cliente.Connect(
+                ip,
+                porta
+            );
+
+            cliente.NoDelay = true;
+
+            stream =
+                cliente.GetStream();
 
             conectado = true;
 
-            Debug.Log("Conectado ao Host!");
+            Debug.Log(
+                "Conectado ao Host!"
+            );
 
             lock (filaPrincipal)
             {
-                filaPrincipal.Enqueue(() =>
-                {
-                    AoConectar?.Invoke();
-                });
+                filaPrincipal.Enqueue(
+                    () =>
+                    {
+                        AoConectar?.Invoke();
+                    }
+                );
             }
 
             IniciarRecebimento();
         }
         catch (Exception erro)
         {
-            Debug.LogError("Erro ao conectar: " + erro.Message);
+            Debug.LogError(
+                "Erro ao conectar: " +
+                erro.Message
+            );
         }
     }
 
-    public void EnviarMensagem(string mensagem)
-{
-    if (!conectado || stream == null)
+    public void EnviarMensagem(
+        string mensagem
+    )
     {
-        Debug.LogWarning("NÃO ENVIOU - sem conexão ou stream nulo");
-        return;
-    }
+        if (!conectado ||
+            stream == null)
+        {
+            return;
+        }
 
-    try
-    {
-        byte[] dados = Encoding.UTF8.GetBytes(mensagem + "\n");
+        try
+        {
+            byte[] dados =
+                Encoding.UTF8.GetBytes(
+                    mensagem + "\n"
+                );
 
-        stream.Write(dados, 0, dados.Length);
-        stream.Flush();
-
-        Debug.Log("TCP ENVIOU: " + mensagem);
+            stream.Write(
+                dados,
+                0,
+                dados.Length
+            );
+        }
+        catch (Exception erro)
+        {
+            Debug.LogError(
+                "Erro ao enviar mensagem TCP: " +
+                erro.Message
+            );
+        }
     }
-    catch (Exception erro)
-    {
-        Debug.LogError("Erro ao enviar mensagem: " + erro.Message);
-    }
-}
 
     private void IniciarRecebimento()
     {
-        threadReceber = new Thread(Receber);
-        threadReceber.IsBackground = true;
+        threadReceber =
+            new Thread(Receber);
+
+        threadReceber.IsBackground =
+            true;
+
         threadReceber.Start();
     }
 
     private void Receber()
     {
-        byte[] buffer = new byte[1024];
-        StringBuilder mensagensPendentes = new StringBuilder();
+        byte[] buffer =
+            new byte[1024];
+
+        StringBuilder mensagensPendentes =
+            new StringBuilder();
 
         while (conectado)
         {
             try
             {
-                int tamanho = stream.Read(buffer, 0, buffer.Length);
+                int tamanho =
+                    stream.Read(
+                        buffer,
+                        0,
+                        buffer.Length
+                    );
 
                 if (tamanho <= 0)
                 {
@@ -164,59 +243,90 @@ public class TCPManager : MonoBehaviour
                     break;
                 }
 
-                Debug.Log("TCP RECEBEU DADOS: " + tamanho + " bytes");
+                string recebido =
+                    Encoding.UTF8.GetString(
+                        buffer,
+                        0,
+                        tamanho
+                    );
 
-                string recebido = Encoding.UTF8.GetString(buffer, 0, tamanho);
-                mensagensPendentes.Append(recebido);
-                Debug.Log("TEXTO RECEBIDO: [" + recebido + "]");
+                mensagensPendentes.Append(
+                    recebido
+                );
 
-                string conteudo = mensagensPendentes.ToString();
-                string[] mensagens = conteudo.Split('\n');
+                string conteudo =
+                    mensagensPendentes.ToString();
 
-                for (int i = 0; i < mensagens.Length - 1; i++)
+                string[] mensagens =
+                    conteudo.Split('\n');
+
+                for (
+                    int i = 0;
+                    i < mensagens.Length - 1;
+                    i++
+                )
                 {
-                    if (!string.IsNullOrWhiteSpace(mensagens[i]))
+                    if (!string.IsNullOrWhiteSpace(
+                        mensagens[i]
+                    ))
                     {
                         lock (mensagensRecebidas)
                         {
-                            mensagensRecebidas.Enqueue(mensagens[i]);
+                            mensagensRecebidas.Enqueue(
+                                mensagens[i]
+                            );
                         }
                     }
                 }
 
                 mensagensPendentes.Clear();
-                mensagensPendentes.Append(mensagens[mensagens.Length - 1]);
+
+                mensagensPendentes.Append(
+                    mensagens[
+                        mensagens.Length - 1
+                    ]
+                );
             }
             catch (Exception erro)
             {
-                Debug.LogError("Erro ao receber mensagem: " + erro.Message);
+                if (conectado)
+                {
+                    Debug.LogError(
+                        "Erro ao receber TCP: " +
+                        erro.Message
+                    );
+                }
+
                 conectado = false;
             }
         }
     }
 
     private void Update()
-{
-    lock (filaPrincipal)
     {
-        while (filaPrincipal.Count > 0)
+        lock (filaPrincipal)
         {
-            filaPrincipal.Dequeue()?.Invoke();
+            while (filaPrincipal.Count > 0)
+            {
+                filaPrincipal.Dequeue()?.Invoke();
+            }
+        }
+
+        lock (mensagensRecebidas)
+        {
+            while (
+                mensagensRecebidas.Count > 0
+            )
+            {
+                string mensagem =
+                    mensagensRecebidas.Dequeue();
+
+                AoReceberMensagem?.Invoke(
+                    mensagem
+                );
+            }
         }
     }
-
-    lock (mensagensRecebidas)
-    {
-        while (mensagensRecebidas.Count > 0)
-        {
-            string mensagem = mensagensRecebidas.Dequeue();
-
-            Debug.Log("TCP ENTREGANDO PARA O JOGO: [" + mensagem + "]");
-
-            AoReceberMensagem?.Invoke(mensagem);
-        }
-    }
-}
 
     private void OnApplicationQuit()
     {

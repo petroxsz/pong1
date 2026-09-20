@@ -754,6 +754,8 @@ MonoBehaviour:
   velocidade: 7
   limiteY: 4
   jogador1: 1
+  suavizacaoRede: 15
+  intervaloEnvio: 0.03
 --- !u!212 &728631650
 SpriteRenderer:
   serializedVersion: 2
@@ -1046,6 +1048,8 @@ MonoBehaviour:
   velocidade: 7
   aumentoVelocidade: 0.5
   velocidadeMaxima: 18
+  suavizacaoRede: 15
+  intervaloEnvio: 0.03
 --- !u!58 &863289546
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -1214,7 +1218,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PongManager
   pontosJogador1: 0
   pontosJogador2: 0
-  pontosParaVencer: 2
+  pontosParaVencer: 5
   placarJogador1: {fileID: 1935644976}
   placarJogador2: {fileID: 1650262547}
   textoVencedor: {fileID: 749077700}
@@ -1268,6 +1272,8 @@ MonoBehaviour:
   velocidade: 7
   limiteY: 4
   jogador1: 0
+  suavizacaoRede: 15
+  intervaloEnvio: 0.03
 --- !u!212 &1516485402
 SpriteRenderer:
   serializedVersion: 2

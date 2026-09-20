@@ -405,6 +405,7 @@ GameObject:
   m_Component:
   - component: {fileID: 397155744}
   - component: {fileID: 397155743}
+  - component: {fileID: 397155745}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -425,8 +426,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TCPManager
   porta: 7777
+  ipHost: 
   conectado: 0
-  souHost: 0
+  souHost: 1
 --- !u!4 &397155744
 Transform:
   m_ObjectHideFlags: 0
@@ -442,6 +444,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &397155745
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 397155742}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc931da5cc3f46e47ad08bc95a1612f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UDPManager
+  porta: 5001
 --- !u!1 &553040369
 GameObject:
   m_ObjectHideFlags: 0
