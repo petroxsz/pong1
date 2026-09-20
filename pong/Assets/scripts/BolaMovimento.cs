@@ -326,6 +326,45 @@ public class BolaMovimento : MonoBehaviour
         }
     }
 
+    public void ResetarBolaCentro()
+{
+    // Em rede, somente o Host pode controlar a bola
+    if (tcp != null &&
+        tcp.conectado &&
+        !tcp.souHost)
+    {
+        return;
+    }
+
+    if (pongManager != null &&
+        pongManager.JogoFinalizado)
+    {
+        return;
+    }
+
+    transform.position = Vector3.zero;
+
+    float direcaoX =
+        Random.value < 0.5f ? -1f : 1f;
+
+    float direcaoY =
+        Random.Range(0.25f, 0.5f);
+
+    if (Random.value < 0.5f)
+    {
+        direcaoY *= -1f;
+    }
+
+    Vector2 direcao =
+        new Vector2(
+            direcaoX,
+            direcaoY
+        ).normalized;
+
+    rb.linearVelocity =
+        direcao * velocidade;
+}
+
     private void OnDestroy()
     {
         if (udp != null)

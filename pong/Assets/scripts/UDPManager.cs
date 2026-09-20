@@ -248,6 +248,25 @@ public class UDPManager : MonoBehaviour
         }
     }
 
+
+    public void Parar()
+{
+    rodando = false;
+    pronto = false;
+    inicializado = false;
+
+    try
+    {
+        udp?.Close();
+    }
+    catch
+    {
+    }
+
+    udp = null;
+    clienteEndpoint = null;
+}
+
     private void OnApplicationQuit()
     {
         rodando = false;

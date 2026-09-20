@@ -328,6 +328,28 @@ public class TCPManager : MonoBehaviour
         }
     }
 
+    public void Desconectar()
+{
+    conectado = false;
+
+    try
+    {
+        stream?.Close();
+        cliente?.Close();
+        servidor?.Stop();
+    }
+    catch
+    {
+    }
+
+    stream = null;
+    cliente = null;
+    servidor = null;
+
+    souHost = false;
+    ipHost = "";
+}
+
     private void OnApplicationQuit()
     {
         conectado = false;

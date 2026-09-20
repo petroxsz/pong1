@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using TMPro;
 
 public class PongManager : MonoBehaviour
@@ -19,6 +21,7 @@ public class PongManager : MonoBehaviour
     private bool jogoFinalizado = false;
 
     private TCPManager tcp;
+    private UDPManager udp;
 
     public bool JogoFinalizado
     {
@@ -30,8 +33,8 @@ public class PongManager : MonoBehaviour
 
     void Start()
     {
-        tcp =
-            TCPManager.Instance;
+        tcp = TCPManager.Instance;
+        udp = UDPManager.Instance;
 
         AtualizarPlacar();
 
@@ -43,6 +46,59 @@ public class PongManager : MonoBehaviour
         {
             tcp.AoReceberMensagem +=
                 ReceberMensagemRede;
+        }
+    }
+
+    void Update()
+    {
+        if (tcp == null ||
+            !tcp.conectado)
+        {
+            return;
+        }
+
+        // R = resetar bola
+        if (Keyboard.current.rKey.wasPressedThisFrame)
+        {
+            PedirResetBola();
+        }
+
+        // ESC = voltar ao menu
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            PedirVoltarMenu();
+        }
+    }
+
+    private void PedirResetBola()
+    {
+        if (tcp.souHost)
+        {
+            bola.ResetarBolaCentro();
+        }
+        else
+        {
+            tcp.EnviarMensagem(
+                "PEDIR_RESET"
+            );
+        }
+    }
+
+    private void PedirVoltarMenu()
+    {
+        if (tcp.souHost)
+        {
+            tcp.EnviarMensagem(
+                "MENU"
+            );
+
+            VoltarParaMenu();
+        }
+        else
+        {
+            tcp.EnviarMensagem(
+                "PEDIR_MENU"
+            );
         }
     }
 
@@ -63,10 +119,8 @@ public class PongManager : MonoBehaviour
         AtualizarPlacar();
         EnviarPlacar();
 
-        if (
-            pontosJogador1 >=
-            pontosParaVencer
-        )
+        if (pontosJogador1 >=
+            pontosParaVencer)
         {
             FinalizarJogo(1);
         }
@@ -89,10 +143,8 @@ public class PongManager : MonoBehaviour
         AtualizarPlacar();
         EnviarPlacar();
 
-        if (
-            pontosJogador2 >=
-            pontosParaVencer
-        )
+        if (pontosJogador2 >=
+            pontosParaVencer)
         {
             FinalizarJogo(2);
         }
@@ -156,11 +208,33 @@ public class PongManager : MonoBehaviour
         string mensagem
     )
     {
-        if (tcp == null ||
-            tcp.souHost)
+        if (tcp == null)
+            return;
+
+        // PEDIDOS DO CLIENTE PARA O HOST
+
+        if (tcp.souHost)
         {
+            if (mensagem == "PEDIR_RESET")
+            {
+                bola.ResetarBolaCentro();
+                return;
+            }
+
+            if (mensagem == "PEDIR_MENU")
+            {
+                tcp.EnviarMensagem(
+                    "MENU"
+                );
+
+                VoltarParaMenu();
+                return;
+            }
+
             return;
         }
+
+        // MENSAGENS DO HOST PARA O CLIENTE
 
         if (mensagem.StartsWith(
             "PLACAR:"
@@ -184,11 +258,9 @@ public class PongManager : MonoBehaviour
 
             AtualizarPlacar();
         }
-        else if (
-            mensagem.StartsWith(
-                "VITORIA:"
-            )
-        )
+        else if (mensagem.StartsWith(
+            "VITORIA:"
+        ))
         {
             string[] dados =
                 mensagem.Split(':');
@@ -219,6 +291,27 @@ public class PongManager : MonoBehaviour
                 vencedor +
                 " VENCEU!";
         }
+        else if (mensagem == "MENU")
+        {
+            VoltarParaMenu();
+        }
+    }
+
+    private void VoltarParaMenu()
+    {
+        if (udp != null)
+        {
+            udp.Parar();
+        }
+
+        if (tcp != null)
+        {
+            tcp.Desconectar();
+        }
+
+        SceneManager.LoadScene(
+            "Menu"
+        );
     }
 
     private void OnDestroy()
