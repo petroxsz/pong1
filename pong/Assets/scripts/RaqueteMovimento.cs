@@ -12,12 +12,15 @@ public class RaqueteMovimento : MonoBehaviour
 
     private TCPManager tcp;
 
-    void Start()
-    {
-        tcp = TCPManager.Instance;
+    void OnEnable()
+{
+    tcp = TCPManager.Instance;
 
+    if (tcp != null)
+    {
         tcp.AoReceberMensagem += ReceberMensagemRede;
     }
+}
 
     void Update()
     {
@@ -85,7 +88,7 @@ public class RaqueteMovimento : MonoBehaviour
     private void ReceberMensagemRede(string mensagem)
     {
         Debug.Log("RECEBI: " + mensagem);
-        
+
         if (!mensagem.StartsWith("RAQUETE:"))
             return;
 
@@ -125,11 +128,11 @@ public class RaqueteMovimento : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
+    private void OnDisable()
+{
+    if (tcp != null)
     {
-        if (tcp != null)
-        {
-            tcp.AoReceberMensagem -= ReceberMensagemRede;
-        }
+        tcp.AoReceberMensagem -= ReceberMensagemRede;
     }
+}
 }

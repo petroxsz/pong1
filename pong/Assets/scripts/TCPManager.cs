@@ -118,20 +118,27 @@ public class TCPManager : MonoBehaviour
     }
 
     public void EnviarMensagem(string mensagem)
+{
+    if (!conectado || stream == null)
     {
-        if (!conectado || stream == null)
-            return;
-
-        try
-        {
-            byte[] dados = Encoding.UTF8.GetBytes(mensagem + "\n");
-            stream.Write(dados, 0, dados.Length);
-        }
-        catch (Exception erro)
-        {
-            Debug.LogError("Erro ao enviar mensagem: " + erro.Message);
-        }
+        Debug.LogWarning("NÃO ENVIOU - sem conexão ou stream nulo");
+        return;
     }
+
+    try
+    {
+        byte[] dados = Encoding.UTF8.GetBytes(mensagem + "\n");
+
+        stream.Write(dados, 0, dados.Length);
+        stream.Flush();
+
+        Debug.Log("TCP ENVIOU: " + mensagem);
+    }
+    catch (Exception erro)
+    {
+        Debug.LogError("Erro ao enviar mensagem: " + erro.Message);
+    }
+}
 
     private void IniciarRecebimento()
     {
@@ -157,8 +164,11 @@ public class TCPManager : MonoBehaviour
                     break;
                 }
 
+                Debug.Log("TCP RECEBEU DADOS: " + tamanho + " bytes");
+
                 string recebido = Encoding.UTF8.GetString(buffer, 0, tamanho);
                 mensagensPendentes.Append(recebido);
+                Debug.Log("TEXTO RECEBIDO: [" + recebido + "]");
 
                 string conteudo = mensagensPendentes.ToString();
                 string[] mensagens = conteudo.Split('\n');
@@ -186,24 +196,27 @@ public class TCPManager : MonoBehaviour
     }
 
     private void Update()
+{
+    lock (filaPrincipal)
     {
-        lock (filaPrincipal)
+        while (filaPrincipal.Count > 0)
         {
-            while (filaPrincipal.Count > 0)
-            {
-                filaPrincipal.Dequeue()?.Invoke();
-            }
-        }
-
-        lock (mensagensRecebidas)
-        {
-            while (mensagensRecebidas.Count > 0)
-            {
-                string mensagem = mensagensRecebidas.Dequeue();
-                AoReceberMensagem?.Invoke(mensagem);
-            }
+            filaPrincipal.Dequeue()?.Invoke();
         }
     }
+
+    lock (mensagensRecebidas)
+    {
+        while (mensagensRecebidas.Count > 0)
+        {
+            string mensagem = mensagensRecebidas.Dequeue();
+
+            Debug.Log("TCP ENTREGANDO PARA O JOGO: [" + mensagem + "]");
+
+            AoReceberMensagem?.Invoke(mensagem);
+        }
+    }
+}
 
     private void OnApplicationQuit()
     {
