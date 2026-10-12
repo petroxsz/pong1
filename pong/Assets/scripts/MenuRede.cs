@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class MenuRede : MonoBehaviour
 {
@@ -8,21 +7,13 @@ public class MenuRede : MonoBehaviour
     public TMP_InputField campoIP;
     public TMP_Text textoStatus;
 
-    private TCPManager tcp;
-
-    void Start()
-    {
-        tcp = TCPManager.Instance;
-
-        tcp.AoConectar += Conectado;
-    }
+    [Header("Rede")]
+    public ClienteUDP clienteUDP;
 
     public void CriarSala()
     {
         textoStatus.text =
-            "AGUARDANDO JOGADOR...";
-
-        tcp.CriarSala();
+            "O SERVIDOR É UM PROGRAMA SEPARADO";
     }
 
     public void EntrarSala()
@@ -33,7 +24,15 @@ public class MenuRede : MonoBehaviour
         if (string.IsNullOrEmpty(ip))
         {
             textoStatus.text =
-                "DIGITE O IP DO HOST";
+                "DIGITE O IP DO SERVIDOR";
+
+            return;
+        }
+
+        if (clienteUDP == null)
+        {
+            textoStatus.text =
+                "CLIENTE UDP NÃO CONFIGURADO";
 
             return;
         }
@@ -41,29 +40,8 @@ public class MenuRede : MonoBehaviour
         textoStatus.text =
             "CONECTANDO...";
 
-        tcp.EntrarSala(ip);
-    }
+        clienteUDP.ipServidor = ip;
 
-    private void Conectado()
-    {
-        textoStatus.text =
-            "CONECTADO!";
-
-        if (UDPManager.Instance != null)
-        {
-            UDPManager.Instance.Inicializar();
-        }
-
-        SceneManager.LoadScene(
-            "Jogo"
-        );
-    }
-
-    private void OnDestroy()
-    {
-        if (tcp != null)
-        {
-            tcp.AoConectar -= Conectado;
-        }
+        clienteUDP.Conectar();
     }
 }
