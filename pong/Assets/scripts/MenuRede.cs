@@ -10,11 +10,7 @@ public class MenuRede : MonoBehaviour
     [Header("Rede")]
     public ClienteUDP clienteUDP;
 
-    public void CriarSala()
-    {
-        textoStatus.text =
-            "O SERVIDOR É UM PROGRAMA SEPARADO";
-    }
+    
 
     public void EntrarSala()
     {

@@ -2,53 +2,49 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Globalization;
 
-public class RaqueteMovimento : MonoBehaviour
+public class RaqueteMovimento2x2 : MonoBehaviour
 {
+    [Header("Jogador")]
+    public int numeroJogador = 1;
+
     [Header("Movimento")]
     public float velocidade = 7f;
-    public float limiteY = 4f;
-
-    [Header("Jogador")]
-    public bool jogador1 = true;
 
     [Header("Rede")]
     public float suavizacaoRede = 15f;
     public float intervaloEnvio = 0.03f;
 
-    private TCPManager tcp;
-    private UDPManager udp;
+    private ClienteUDP clienteUDP;
 
     private float posicaoYRede;
     private float proximoEnvio = 0f;
 
+    private bool estavaMovendo = false;
+
     void Start()
     {
-        tcp = TCPManager.Instance;
-        udp = UDPManager.Instance;
+        clienteUDP = ClienteUDP.Instance;
 
         posicaoYRede =
             transform.position.y;
 
-        if (udp != null)
+        if (clienteUDP != null)
         {
-            udp.AoReceberMensagem +=
+            clienteUDP.AoReceberMensagem +=
                 ReceberMensagemRede;
         }
     }
 
     void Update()
     {
-        if (tcp == null ||
-            !tcp.conectado)
-        {
+        if (clienteUDP == null)
             return;
-        }
 
-        bool souDonoDaRaquete =
-            (jogador1 && tcp.souHost) ||
-            (!jogador1 && !tcp.souHost);
+        bool souDono =
+            clienteUDP.meuId ==
+            numeroJogador;
 
-        if (souDonoDaRaquete)
+        if (souDono)
         {
             MovimentoLocal();
         }
@@ -62,29 +58,14 @@ public class RaqueteMovimento : MonoBehaviour
     {
         float movimento = 0f;
 
-        if (jogador1)
+        if (Keyboard.current.wKey.isPressed)
         {
-            if (Keyboard.current.wKey.isPressed)
-            {
-                movimento = 1f;
-            }
-
-            if (Keyboard.current.sKey.isPressed)
-            {
-                movimento = -1f;
-            }
+            movimento = 1f;
         }
-        else
-        {
-            if (Keyboard.current.upArrowKey.isPressed)
-            {
-                movimento = 1f;
-            }
 
-            if (Keyboard.current.downArrowKey.isPressed)
-            {
-                movimento = -1f;
-            }
+        if (Keyboard.current.sKey.isPressed)
+        {
+            movimento = -1f;
         }
 
         transform.Translate(
@@ -94,20 +75,12 @@ public class RaqueteMovimento : MonoBehaviour
             Time.deltaTime
         );
 
-        Vector3 posicao =
-            transform.position;
+        LimitarMovimento();
 
-        posicao.y =
-            Mathf.Clamp(
-                posicao.y,
-                -limiteY,
-                limiteY
-            );
+        bool estaMovendo =
+            movimento != 0f;
 
-        transform.position =
-            posicao;
-
-        if (movimento != 0f &&
+        if (estaMovendo &&
             Time.time >= proximoEnvio)
         {
             EnviarPosicao();
@@ -116,6 +89,17 @@ public class RaqueteMovimento : MonoBehaviour
                 Time.time +
                 intervaloEnvio;
         }
+
+        // Envia uma última posição
+        // quando soltar a tecla
+        if (!estaMovendo &&
+            estavaMovendo)
+        {
+            EnviarPosicao();
+        }
+
+        estavaMovendo =
+            estaMovendo;
     }
 
     private void MovimentoRede()
@@ -137,22 +121,14 @@ public class RaqueteMovimento : MonoBehaviour
 
     private void EnviarPosicao()
     {
-        if (udp == null)
-            return;
-
-        int numeroJogador =
-            jogador1 ? 1 : 2;
-
         string mensagem =
             "RAQUETE:" +
-            numeroJogador +
-            ":" +
             transform.position.y.ToString(
                 "F3",
                 CultureInfo.InvariantCulture
             );
 
-        udp.EnviarMensagem(
+        clienteUDP.EnviarMensagem(
             mensagem
         );
     }
@@ -174,12 +150,23 @@ public class RaqueteMovimento : MonoBehaviour
         if (dados.Length != 3)
             return;
 
-        int numeroJogador;
+        int id;
 
         if (!int.TryParse(
             dados[1],
-            out numeroJogador
+            out id
         ))
+        {
+            return;
+        }
+
+        if (id != numeroJogador)
+            return;
+
+        // A própria raquete já está sendo
+        // controlada localmente
+        if (clienteUDP.meuId ==
+            numeroJogador)
         {
             return;
         }
@@ -196,24 +183,51 @@ public class RaqueteMovimento : MonoBehaviour
             return;
         }
 
-        if (jogador1 &&
-            numeroJogador == 1)
+        posicaoYRede = y;
+    }
+
+    private void LimitarMovimento()
+    {
+        Vector3 posicao =
+            transform.position;
+
+        // Player 1 e 3:
+        // metade superior
+        if (numeroJogador == 1 ||
+            numeroJogador == 3)
         {
-            posicaoYRede = y;
+            posicao.y =
+                Mathf.Clamp(
+                    posicao.y,
+                    0.3f,
+                    4f
+                );
         }
 
-        if (!jogador1 &&
-            numeroJogador == 2)
+        // Player 2 e 4:
+        // metade inferior
+        else if (
+            numeroJogador == 2 ||
+            numeroJogador == 4
+        )
         {
-            posicaoYRede = y;
+            posicao.y =
+                Mathf.Clamp(
+                    posicao.y,
+                    -4f,
+                    -0.3f
+                );
         }
+
+        transform.position =
+            posicao;
     }
 
     private void OnDestroy()
     {
-        if (udp != null)
+        if (clienteUDP != null)
         {
-            udp.AoReceberMensagem -=
+            clienteUDP.AoReceberMensagem -=
                 ReceberMensagemRede;
         }
     }
