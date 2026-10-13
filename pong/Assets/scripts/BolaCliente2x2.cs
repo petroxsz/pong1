@@ -4,26 +4,44 @@ using System.Globalization;
 public class BolaCliente2x2 : MonoBehaviour
 {
     [Header("Rede")]
-    public float suavizacaoRede = 15f;
+    public float suavizacaoRede = 30f;
     public float distanciaParaTeleportar = 3f;
+
+    [Header("Predicao")]
+    public float maximoTempoPredicao = 0.05f;
 
     private ClienteUDP clienteUDP;
     private Rigidbody2D rb;
 
     private Vector3 posicaoRede;
+    private Vector2 velocidadeRede;
+
+    private float tempoUltimaMensagem = 0f;
 
     void Start()
     {
-        clienteUDP = ClienteUDP.Instance;
-        rb = GetComponent<Rigidbody2D>();
+        clienteUDP =
+            ClienteUDP.Instance;
 
-        posicaoRede = transform.position;
+        rb =
+            GetComponent<Rigidbody2D>();
 
-        // O cliente não calcula física da bola.
+        posicaoRede =
+            transform.position;
+
+        velocidadeRede =
+            Vector2.zero;
+
+        tempoUltimaMensagem =
+            Time.time;
+
         if (rb != null)
         {
-            rb.linearVelocity = Vector2.zero;
-            rb.simulated = false;
+            rb.linearVelocity =
+                Vector2.zero;
+
+            rb.simulated =
+                false;
         }
 
         if (clienteUDP != null)
@@ -35,15 +53,34 @@ public class BolaCliente2x2 : MonoBehaviour
 
     void Update()
     {
+        float tempoDesdeUltimoPacote =
+            Time.time -
+            tempoUltimaMensagem;
+
+        tempoDesdeUltimoPacote =
+            Mathf.Clamp(
+                tempoDesdeUltimoPacote,
+                0f,
+                maximoTempoPredicao
+            );
+
+        Vector3 posicaoPrevista =
+            posicaoRede +
+            new Vector3(
+                velocidadeRede.x,
+                velocidadeRede.y,
+                0f
+            ) *
+            tempoDesdeUltimoPacote;
+
         float distancia =
             Vector3.Distance(
                 transform.position,
                 posicaoRede
             );
 
-        // Quando a bola volta ao centro depois de um gol,
-        // não queremos que ela atravesse o campo lentamente.
-        if (distancia > distanciaParaTeleportar)
+        if (distancia >
+            distanciaParaTeleportar)
         {
             transform.position =
                 posicaoRede;
@@ -53,7 +90,7 @@ public class BolaCliente2x2 : MonoBehaviour
             transform.position =
                 Vector3.Lerp(
                     transform.position,
-                    posicaoRede,
+                    posicaoPrevista,
                     Time.deltaTime *
                     suavizacaoRede
                 );
@@ -64,17 +101,23 @@ public class BolaCliente2x2 : MonoBehaviour
         string mensagem
     )
     {
-        if (!mensagem.StartsWith("BOLA:"))
+        if (!mensagem.StartsWith(
+            "BOLA:"
+        ))
+        {
             return;
+        }
 
         string[] dados =
             mensagem.Split(':');
 
-        if (dados.Length != 3)
+        if (dados.Length != 5)
             return;
 
         float x;
         float y;
+        float velocidadeX;
+        float velocidadeY;
 
         bool xValido =
             float.TryParse(
@@ -92,8 +135,29 @@ public class BolaCliente2x2 : MonoBehaviour
                 out y
             );
 
-        if (!xValido || !yValido)
+        bool velocidadeXValida =
+            float.TryParse(
+                dados[3],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out velocidadeX
+            );
+
+        bool velocidadeYValida =
+            float.TryParse(
+                dados[4],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out velocidadeY
+            );
+
+        if (!xValido ||
+            !yValido ||
+            !velocidadeXValida ||
+            !velocidadeYValida)
+        {
             return;
+        }
 
         posicaoRede =
             new Vector3(
@@ -101,6 +165,15 @@ public class BolaCliente2x2 : MonoBehaviour
                 y,
                 transform.position.z
             );
+
+        velocidadeRede =
+            new Vector2(
+                velocidadeX,
+                velocidadeY
+            );
+
+        tempoUltimaMensagem =
+            Time.time;
     }
 
     private void OnDestroy()

@@ -11,22 +11,32 @@ public class RaqueteMovimento2x2 : MonoBehaviour
     public float velocidade = 7f;
 
     [Header("Rede")]
-    public float suavizacaoRede = 15f;
+    public float suavizacaoRede = 30f;
     public float intervaloEnvio = 0.03f;
+    public float maximoTempoPredicao = 0.05f;
 
     private ClienteUDP clienteUDP;
 
     private float posicaoYRede;
+    private float velocidadeYRede;
+
+    private float tempoUltimaMensagem = 0f;
     private float proximoEnvio = 0f;
 
     private bool estavaMovendo = false;
 
     void Start()
     {
-        clienteUDP = ClienteUDP.Instance;
+        clienteUDP =
+            ClienteUDP.Instance;
 
         posicaoYRede =
             transform.position.y;
+
+        velocidadeYRede = 0f;
+
+        tempoUltimaMensagem =
+            Time.time;
 
         if (clienteUDP != null)
         {
@@ -68,10 +78,13 @@ public class RaqueteMovimento2x2 : MonoBehaviour
             movimento = -1f;
         }
 
+        float velocidadeY =
+            movimento *
+            velocidade;
+
         transform.Translate(
             Vector2.up *
-            movimento *
-            velocidade *
+            velocidadeY *
             Time.deltaTime
         );
 
@@ -83,19 +96,23 @@ public class RaqueteMovimento2x2 : MonoBehaviour
         if (estaMovendo &&
             Time.time >= proximoEnvio)
         {
-            EnviarPosicao();
+            EnviarPosicao(
+                velocidadeY
+            );
 
             proximoEnvio =
                 Time.time +
                 intervaloEnvio;
         }
 
-        // Envia uma última posição
-        // quando soltar a tecla
+        // Ao soltar a tecla,
+        // envia velocidade 0.
         if (!estaMovendo &&
             estavaMovendo)
         {
-            EnviarPosicao();
+            EnviarPosicao(
+                0f
+            );
         }
 
         estavaMovendo =
@@ -104,13 +121,51 @@ public class RaqueteMovimento2x2 : MonoBehaviour
 
     private void MovimentoRede()
     {
+        float tempoDesdeUltimoPacote =
+            Time.time -
+            tempoUltimaMensagem;
+
+        tempoDesdeUltimoPacote =
+            Mathf.Clamp(
+                tempoDesdeUltimoPacote,
+                0f,
+                maximoTempoPredicao
+            );
+
+        float yPrevisto =
+            posicaoYRede +
+            velocidadeYRede *
+            tempoDesdeUltimoPacote;
+
+        // Mantém a previsão dentro
+        // da área permitida.
+        if (numeroJogador == 1 ||
+            numeroJogador == 3)
+        {
+            yPrevisto =
+                Mathf.Clamp(
+                    yPrevisto,
+                    0.3f,
+                    4f
+                );
+        }
+        else
+        {
+            yPrevisto =
+                Mathf.Clamp(
+                    yPrevisto,
+                    -4f,
+                    -0.3f
+                );
+        }
+
         Vector3 posicao =
             transform.position;
 
         posicao.y =
             Mathf.Lerp(
                 posicao.y,
-                posicaoYRede,
+                yPrevisto,
                 Time.deltaTime *
                 suavizacaoRede
             );
@@ -119,11 +174,18 @@ public class RaqueteMovimento2x2 : MonoBehaviour
             posicao;
     }
 
-    private void EnviarPosicao()
+    private void EnviarPosicao(
+        float velocidadeY
+    )
     {
         string mensagem =
             "RAQUETE:" +
             transform.position.y.ToString(
+                "F3",
+                CultureInfo.InvariantCulture
+            ) +
+            ":" +
+            velocidadeY.ToString(
                 "F3",
                 CultureInfo.InvariantCulture
             );
@@ -147,7 +209,7 @@ public class RaqueteMovimento2x2 : MonoBehaviour
         string[] dados =
             mensagem.Split(':');
 
-        if (dados.Length != 3)
+        if (dados.Length != 4)
             return;
 
         int id;
@@ -163,8 +225,8 @@ public class RaqueteMovimento2x2 : MonoBehaviour
         if (id != numeroJogador)
             return;
 
-        // A própria raquete já está sendo
-        // controlada localmente
+        // A raquete local continua
+        // sendo controlada diretamente.
         if (clienteUDP.meuId ==
             numeroJogador)
         {
@@ -172,18 +234,37 @@ public class RaqueteMovimento2x2 : MonoBehaviour
         }
 
         float y;
+        float velocidadeY;
 
-        if (!float.TryParse(
-            dados[2],
-            NumberStyles.Float,
-            CultureInfo.InvariantCulture,
-            out y
-        ))
+        bool yValido =
+            float.TryParse(
+                dados[2],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out y
+            );
+
+        bool velocidadeValida =
+            float.TryParse(
+                dados[3],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out velocidadeY
+            );
+
+        if (!yValido ||
+            !velocidadeValida)
         {
             return;
         }
 
         posicaoYRede = y;
+
+        velocidadeYRede =
+            velocidadeY;
+
+        tempoUltimaMensagem =
+            Time.time;
     }
 
     private void LimitarMovimento()
@@ -191,8 +272,6 @@ public class RaqueteMovimento2x2 : MonoBehaviour
         Vector3 posicao =
             transform.position;
 
-        // Player 1 e 3:
-        // metade superior
         if (numeroJogador == 1 ||
             numeroJogador == 3)
         {
@@ -203,9 +282,6 @@ public class RaqueteMovimento2x2 : MonoBehaviour
                     4f
                 );
         }
-
-        // Player 2 e 4:
-        // metade inferior
         else if (
             numeroJogador == 2 ||
             numeroJogador == 4
